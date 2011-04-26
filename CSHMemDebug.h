@@ -20,112 +20,90 @@
 #ifndef CSHMEMDEBUG_H
 #define CSHMEMDEBUG_H
 
+#ifdef CSH_ACTIVATE_DEBUGING
+
 #include <stdio.h>
+#include <string.h>
 #include "cshTypes_Collection.h"
 
 
-class debugMemException
+class CSHDebugMem
 {
+ public:
+  class debugMemException
+  {
+  };
+  
+  struct objectInfo
+  {
+    char *filename;
+    int linenumber;
+  };
+
+  CSHDebugMem()
+    {
+    }
+
+  virtual ~CSHDebugMem()
+    {
+      printf("\n--------------------------------------------\n");
+      printf("---object memory leaks at file:linenumber---\n");
+      printf("--------------------------------------------\n");
+      dumpActiveObjects();
+    }
+
+  static void insert(objectInfo *obj,const char *filename,int linenumber)
+  {
+      int fnLen = strlen(filename);
+      obj->filename = (char *)malloc(fnLen+1);
+    strcpy(obj->filename,filename);
+    obj->linenumber = linenumber;
+    activeObjects.add(obj);
+  }
+
+  static void remove(objectInfo *obj)
+  {
+    int foundObj = 0;
+
+    int size = activeObjects.getNumberOfItems();
+    for(int i=0;i<size;i++)
+      {
+	objectInfo *currObj = activeObjects.getValueAtIndex(i);
+	if(currObj==obj)
+	  {
+	    free(currObj->filename);
+	    activeObjects.removeItemAtIndex(i);
+
+	    foundObj = 1;
+	    break;
+	  }
+      }
+
+    if(!foundObj)
+      throw debugMemException();
+  }
+
+  static void dumpActiveObjects()
+  {
+    int size = activeObjects.getNumberOfItems();
+    for(int i=0;i<size;i++)
+      {
+	objectInfo *currObj = activeObjects.getValueAtIndex(i);
+	printf("%s:%d\n",currObj->filename,currObj->linenumber);
+      }
+  }
+
+  typedef CSHCollection<objectInfo *>::collection objectInfoList;
+  static objectInfoList activeObjects;
+  
 };
+void *operator new(size_t size,const char *fn,int ln);
+void *operator new [](size_t size,const char *fn,int ln);
 
-struct debugItem
-{
-	void *ptr;
-	int id;
-};
-
-typedef CSHCollection<debugItem *>::collection CSHMemDebug_Collection_debugItem;
-typedef CSHCollection<int>::collection CSHMemDebug_Collection_Int;
-
-
-class debugMem
-{
-	public:
-		static void debug()
-		{
-			int nonDelItems = getDIList()->getNumberOfItems();
-			if(nonDelItems>0)
-			{
-				printf("\nDEBUG MEM:memory leak\n");
-			}
-			for(int i=0;i<nonDelItems;i++)
-			{
-				printf("id %d not deleted\n",getDIList()->getValueAtIndex(i)->id);
-				delete getDIList()->getValueAtIndex(i);
-			}
-		}
-
-		static void stopAtCreationOfID(int id)
-		{
-			getIDList()->add(id);
-		}
-
-		static void cshdebug(int id)
-		{
-			printf("\ncreating registered object id %d\n",id);
-		}
-
-		static int debug_id;
-
-		static CSHMemDebug_Collection_debugItem *getDIList()
-		{
-			if(newedList==NULL)
-				newedList = new CSHMemDebug_Collection_debugItem;
-			return newedList;
-		}
-
-		static CSHMemDebug_Collection_Int *getIDList()
-		{
-			if(idList==NULL)
-				idList = new CSHMemDebug_Collection_Int;
-			return idList;
-		}
-
-	private:
-		static CSHMemDebug_Collection_debugItem *newedList;
-		static CSHMemDebug_Collection_Int *idList;
-};
-
-
-#define DEBUG_THIS_CLASS \
-		void *operator new(unsigned int size ) \
-		{ \
-			void *ptr = ::operator new(size); \
-			debugItem *di = new debugItem; \
-			di->ptr = ptr; \
-			di->id =debugMem::debug_id++; \
- \
-			for(int i=0;i<debugMem::getIDList()->getNumberOfItems();i++) \
-				if(di->id==(debugMem::getIDList()->getValueAtIndex(i))) \
-				{ \
-					debugMem::cshdebug(di->id); \
-				} \
- \
-			debugMem::getDIList()->add(di); \
-			return ptr; \
-		} \
- \
-		void operator delete(void *ptr) \
-		{ \
-			int foundItem = 0; \
-			for(int i=0;i<debugMem::getDIList()->getNumberOfItems();i++) \
-				if(debugMem::getDIList()->getValueAtIndex(i)->ptr==ptr) \
-				{ \
-					delete debugMem::getDIList()->getValueAtIndex(i); \
-					debugMem::getDIList()->removeItemAtIndex(i); \
-					foundItem = 1; \
-					break; \
-				} \
- \
-			if(!foundItem) \
-			{ \
-				debugMemException e; \
-				throw e; \
-			} \
- \
-			::operator delete(ptr); \
-		} 
-
+#ifndef CSH_EXCLUDE_NEW_MACRO
+#define new new((const char *)__FILE__,__LINE__)
+#endif
 
 #endif
 
+#endif

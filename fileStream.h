@@ -46,7 +46,7 @@ class fileStream
 	public:
 		fileStream(char *filename)
 		{
-			f = fopen(filename,"rt");
+			f = fopen(filename,"rb");
 			if(f==NULL)
 			{
 				throw CSHStreamExceptions::couldNotOpenStream(filename);
