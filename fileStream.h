@@ -127,14 +127,14 @@ class getsFileStream : public getsStream
 
 		virtual char *gets()
 		{
-			char *ret = ::fgets(buffer,2040,f);
+			char *ret = ::fgets(buffer,20478,f);
 			if(ret==NULL)
 				throw noMoreStrings(1);
 
 			return buffer;
 		}
 
-		char buffer[2048];
+		char buffer[20480];
 
 	private:
 		FILE *f;
